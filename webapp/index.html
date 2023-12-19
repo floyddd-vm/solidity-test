@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web3.js and MetaMask Frontend</title>
+</head>
+<body>
+
+<h1>Web3.js and MetaMask Frontend</h1>
+
+<button onclick="connectToMetaMask()">Connect to MetaMask</button>
+
+<hr>
+
+<h2>Create Collection</h2>
+
+<label for="name">Name:</label>
+<input type="text" id="name" placeholder="Enter collection name">
+
+<label for="symbol">Symbol:</label>
+<input type="text" id="symbol" placeholder="Symbol">
+
+<label for="baseUri">baseURI:</label>
+<input type="text" id="baseUri" placeholder="link baseURI">
+
+<button onclick="deploy()">Deploy collection</button>
+
+<h2>Mint NFT</h2>
+
+<label for="collectionSelect">Collection Address:</label>
+
+<select id="collectionSelect"></select>
+
+<label for="tokenId">Token Id:</label>
+<input type="text" id="tokenId" placeholder="uint256">
+
+<button onclick="mint()">Mint token</button>
+
+<script src="https://cdn.jsdelivr.net/npm/web3@1.5.2/dist/web3.min.js"></script>
+<script src="/config.js"></script>
+<script>
+    // Check if MetaMask is installed
+    if (typeof window.ethereum !== 'undefined') {
+        window.web3 = new Web3(window.ethereum);
+    } else {
+        alert("Please install MetaMask to use this website.");
+    }
+    let from;
+
+    async function connectToMetaMask() {
+        try {
+            // Request account access if needed
+            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            alert('Connected to MetaMask!');
+           from = accounts[0];
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    //load collections list
+    async function loadCollections(){
+        let selectTag = document.getElementById('collectionSelect');
+        selectTag.innerText = null;
+        const xhr = new XMLHttpRequest();
+        xhr.open("GET", "/collections");
+        xhr.send();
+        xhr.responseType = "json";
+        xhr.onload = () => {
+        if (xhr.readyState == 4 && xhr.status == 200) {
+            const data = xhr.response;
+            console.log(data);
+            data.collections.map( (lang, i) => {
+                let opt = document.createElement("option");
+                opt.value = i; // the index
+                opt.innerHTML = lang;
+                selectTag.append(opt);
+            });
+        } else {
+            console.log(`Error: ${xhr.status}`);
+        }
+        };
+    }
+    loadCollections();
+    //
+    // Deploy new nft collection
+    //
+    async function deploy(){
+        const instance = await new web3.eth.Contract(appConfig.abi, appConfig.contractAddress);
+        try {
+            if(!from)
+                from = (await window.ethereum.request({ method: 'eth_requestAccounts' }))[0];
+            console.log(from)
+            let result = await instance.methods.deploy(name, symbol, baseUri).send({from});
+
+            alert(`Transaction sent! Transaction Hash: ${result.transactionHash}`);
+            console.log(result)
+            loadCollections();
+        } catch (error) {
+            console.error(error);
+            alert('Failed to send transaction. Check the console for details.');
+        }
+    }
+
+    //
+    // Mint nft
+    //
+    async function mint(){
+        const e = document.getElementById('collectionSelect');
+        var value = e.value;
+        var collection = e.options[e.selectedIndex].text;
+        const tokenId = document.getElementById('tokenId').value;
+        const instance = await new web3.eth.Contract(appConfig.abi, appConfig.contractAddress);
+        try {
+            if(!from)
+                from = (await window.ethereum.request({ method: 'eth_requestAccounts' }))[0];
+            console.log(from)
+            let result = await instance.methods.mint(collection, from, tokenId).send({from});
+
+            alert(`Transaction sent! Transaction Hash: ${result.transactionHash}`);
+        } catch (error) {
+            console.error(error);
+            alert('Failed to send transaction. Check the console for details.');
+        }
+    }
+</script>
+
+</body>
+</html>
